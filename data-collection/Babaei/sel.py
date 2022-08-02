@@ -9,6 +9,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
 
 class TelewebionScraper(webdriver.Firefox):
 
@@ -43,12 +44,18 @@ class TelewebionScraper(webdriver.Firefox):
         self.add_cookie({'name': 'token', 'value': os.getenv('token')})
 
     def click_load_more_button(self):
-        load_more_elem = WebDriverWait(self, 20).until(
-            EC.visibility_of_element_located((By.CLASS_NAME, 'load-more'))
-        )
-        if load_more_elem:
-            print('load more button clicked!')
-            load_more_elem.click()
+        try:
+            load_more_elem = WebDriverWait(self, 1).until(
+                EC.visibility_of_element_located((By.CLASS_NAME, 'load-more'))
+            )
+            if load_more_elem:
+                print('load more button clicked!')
+                load_more_elem.click()
+                return True
+            return False
+            
+        except TimeoutException:
+            return False
 
     def get_episodes(self):
         elems = WebDriverWait(self, 20).until(
@@ -90,7 +97,10 @@ class TelewebionScraper(webdriver.Firefox):
     def get_link_per_channel_date(self, date, channel):
         self.get_archive(date, channel)
         self.set_cookie_auth()
-        self.click_load_more_button()
+        load_more_button_exist = True
+        while load_more_button_exist:
+            load_more_button_exist = self.click_load_more_button()
+            time.sleep(0.5)
         elems = self.get_episodes()
         for elem in tqdm(elems):
             self.extract_link(elem)
@@ -109,6 +119,8 @@ class TelewebionScraper(webdriver.Firefox):
         f_480.close()
         f_720.close()
         f_1080.close()
+
+        print('links wrote to files.')
 
         self.download_dict.clear()
 
