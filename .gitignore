@@ -199,3 +199,6 @@ pip-selfcheck.json
 
 # Ignore geckodriver
 geckodriver
+
+# Ignore date directory
+data
