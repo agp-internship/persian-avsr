@@ -4,3 +4,4 @@
 - selenium
 - jdatetime
 - python-dotenv
+- tqdm
