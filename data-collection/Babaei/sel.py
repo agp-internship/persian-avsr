@@ -87,15 +87,38 @@ class TelewebionScraper(webdriver.Firefox):
         except:
             print('Not Found')
 
-    def run(self):
-        self.get_archive()
+    def get_link_per_channel_date(self, date, channel):
+        self.get_archive(date, channel)
         self.set_cookie_auth()
         self.click_load_more_button()
         elems = self.get_episodes()
         for elem in tqdm(elems):
             self.extract_link(elem)
 
+    def write_to_file(self):
+        os.makedirs('./data/', exist_ok=True)
+        f_480   = open('./data/480.txt', 'a')
+        f_720   = open('./data/720.txt', 'a')
+        f_1080  = open('./data/1080.txt', 'a')
+
+        for _, value in self.download_dict.items():
+            f_480.write(value['480'] + '\n')
+            f_720.write(value['720'] + '\n')
+            f_1080.write(value['1080'] + '\n')
+
+        f_480.close()
+        f_720.close()
+        f_1080.close()
+
+        self.download_dict.clear()
+
+    def run(self, days=30, channel='irinn'):
+        today = jdatetime.date.today()
+        for i in range(days):
+            date = today - jdatetime.timedelta(i)
+            self.get_link_per_channel_date(date, channel)
+            self.write_to_file()
+
 if __name__ == "__main__":
     with TelewebionScraper() as tele_obj:
-        tele_obj.run()
-        print(tele_obj.download_dict)    
+        tele_obj.run(days=2)   
