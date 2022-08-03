@@ -8,9 +8,9 @@ Script to scrape telewebion archive videos
 
 optional arguments:
   -h, --help            show this help message and exit
-  -d DAYS, --days DAYS  how many days to be scraped by script from today to the past
+  -d DAYS, --days DAYS  how many days to be scraped by script from today to the past [default=1]
   -c CHANNEL, --channel CHANNEL
-                        channel that you want to scrape its archive
+                        channel that you want to scrape its archive [default=irinn]
 ```
 
 ## Requirements
