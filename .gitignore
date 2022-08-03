@@ -201,4 +201,6 @@ pip-selfcheck.json
 geckodriver
 
 # Ignore date directory
-data
+480.txt
+720.txt
+1080.txt
