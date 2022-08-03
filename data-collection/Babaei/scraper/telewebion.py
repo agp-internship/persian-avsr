@@ -52,7 +52,7 @@ class TelewebionScraper(webdriver.Firefox):
     def load_valid_channels(self, path='./data/valid_channels.txt'):
         with open(path, 'r') as f:
             channels = list(map(lambda x: x.replace('\n', ''), f.readlines()))
-        print(channels)
+        return channels
 
     def click_load_more_button(self):
         try:
@@ -138,7 +138,7 @@ class TelewebionScraper(webdriver.Firefox):
 
         self.download_dict.clear()
 
-    def run(self, days=30, channel='irinn'):
+    def run(self, days=1, channel='irinn'):
         today = jdatetime.date.today()
         for i in range(days):
             date = today - jdatetime.timedelta(i)
