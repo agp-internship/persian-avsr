@@ -34,8 +34,7 @@ class TelewebionScraper(webdriver.Firefox):
 
     def get_archive(self, date=jdatetime.date.today(), channel='irinn'):
         if channel not in self.valid_channels:
-            print(f'{channel} is not a valid channel in Telewebion')
-            raise ChannelDoesNotExistException
+            raise ChannelDoesNotExistException(channel)
 
         date_str = date.strftime("%Y-%m-%d")
         date_str_without_zeropad = date_str.replace('-0', '-')
@@ -106,18 +105,15 @@ class TelewebionScraper(webdriver.Firefox):
             print('Not Found')
 
     def get_link_per_channel_date(self, date, channel):
-        try:
-            self.get_archive(date, channel)
-            self.set_cookie_auth()
-            load_more_button_exist = True
-            while load_more_button_exist:
-                load_more_button_exist = self.click_load_more_button()
-                time.sleep(0.5)
-            elems = self.get_episodes()
-            for elem in tqdm(elems):
-                self.extract_link(elem)
-        except ChannelDoesNotExistException as e:
-            print(e)
+        self.get_archive(date, channel)
+        self.set_cookie_auth()
+        load_more_button_exist = True
+        while load_more_button_exist:
+            load_more_button_exist = self.click_load_more_button()
+            time.sleep(0.5)
+        elems = self.get_episodes()
+        for elem in tqdm(elems):
+            self.extract_link(elem)
 
     def write_to_file(self):
         os.makedirs('./data/', exist_ok=True)
@@ -139,8 +135,11 @@ class TelewebionScraper(webdriver.Firefox):
         self.download_dict.clear()
 
     def run(self, days=1, channel='irinn'):
-        today = jdatetime.date.today()
-        for i in range(days):
-            date = today - jdatetime.timedelta(i)
-            self.get_link_per_channel_date(date, channel)
-            self.write_to_file()
+        try:
+            today = jdatetime.date.today()
+            for i in range(days):
+                date = today - jdatetime.timedelta(i)
+                self.get_link_per_channel_date(date, channel)
+                self.write_to_file()
+        except ChannelDoesNotExistException as e:
+            print(f'error: {e}')
