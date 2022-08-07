@@ -200,7 +200,8 @@ pip-selfcheck.json
 # Ignore geckodriver
 geckodriver
 
-# Ignore date directory
+# Ignore data directory
 480.txt
 720.txt
 1080.txt
+videos
