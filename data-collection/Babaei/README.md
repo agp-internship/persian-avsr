@@ -11,6 +11,7 @@ optional arguments:
   -d DAYS, --days DAYS  how many days to be scraped by script from today to the past [default=1]
   -c CHANNEL, --channel CHANNEL
                         channel that you want to scrape its archive [default=irinn]
+  -a, --auto            enable automatic scrape.
 ```
 
 ## Requirements

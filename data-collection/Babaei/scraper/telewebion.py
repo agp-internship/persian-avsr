@@ -143,3 +143,7 @@ class TelewebionScraper(webdriver.Firefox):
                 self.write_to_file()
         except ChannelDoesNotExistException as e:
             print(f'error: {e}')
+
+    def automatic_scrape(self, days=30):
+        for channel in self.valid_channels:
+            self.run(days, channel)
