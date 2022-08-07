@@ -1,0 +1,47 @@
+version: 1
+disable_existing_loggers: true
+
+formatters:
+  brief:
+    format: 'Log: %(message)s'
+  
+  standard:
+    format: '[%(asctime)s] [%(levelname)-8s] - %(name)-15s - %(message)s'
+    datefmt: '%Y-%m-%d %H:%M:%S'
+  error:
+    format: "%(levelname)s <PID %(process)d:%(processName)s> %(name)s.%(funcName)s(): %(message)s"
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    level: DEBUG
+    formatter: brief
+    stream: ext://sys.stdout
+  
+  file-info:
+    class: logging.handlers.RotatingFileHandler
+    level: DEBUG
+    formatter: standard
+    filename: log/telewebion-info.log
+    maxBytes: 10485760 # 10MB
+    backupCount: 20
+    encoding: utf8
+  
+  file-error:
+    class: logging.handlers.RotatingFileHandler
+    level: ERROR
+    formatter: error
+    filename: log/telewebion-error.log
+    maxBytes: 10485760 # 10MB
+    backupCount: 20
+    encoding: utf8
+
+loggers: 
+  scraper.telewebion:
+    level: DEBUG
+    handlers: [console, file-info, file-error]
+    propagate: no
+
+root: 
+  level: DEBUG
+  handlers: [console, file-info, file-error]
