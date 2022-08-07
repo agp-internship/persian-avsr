@@ -1,6 +1,8 @@
 from logging import getLogger
 import os
+from sys import exc_info
 import time
+import requests
 import jdatetime
 from tqdm import tqdm
 from dotenv import load_dotenv
@@ -180,3 +182,40 @@ class TelewebionScraper(webdriver.Firefox):
             self.logger.debug('exit')
         except (NoSuchWindowException, InvalidSessionIdException):
             self.logger.debug('Browser closed.', exc_info=True)
+
+    def download(self, quality='720'):
+        self.logger.info('Start Downloading...')
+        os.makedirs(f'./data/videos/{quality}', exist_ok=True)
+        with open(f'./data/{quality}.txt', 'r') as f:
+            links = f.readlines()
+            links = list(map(lambda x: x[:-1], links))
+        self.logger.info(f'{quality}p video links loaded.')
+        try:
+            for i in range(len(links)):
+                try:
+                    self.logger.info(f'({i+1} of {len(links)})')
+                    link = links[i]
+                    filename = '-'.join(link.split('/')[-3:-1]) + '.mp4'
+                    r = requests.get(link, allow_redirects=True, stream=True)
+                    total = int(r.headers.get('content-length', 0))
+                    with open(f'./data/videos/{quality}/{filename}', 'wb') as f, tqdm(
+                        desc=filename,
+                        total=total,
+                        unit='iB',
+                        unit_scale=True,
+                        unit_divisor=1024,
+                    ) as bar:
+                        for data in r.iter_content(chunk_size=1024):
+                            size = f.write(data)
+                            bar.update(size)
+                except requests.exceptions.HTTPError as errh:
+                    self.log.error(f"Http Error: {errh}", exc_info=True)
+                except requests.exceptions.ConnectionError as errc:
+                    self.logger.error(f"Error Connecting: {errc}", exc_info=True)
+                except requests.exceptions.Timeout as errt:
+                    self.logger.error(f"Timeout Error: {errt}", exc_info=True)
+                except requests.exceptions.RequestException as err:
+                    self.logger.error(f"OOps: Something Else {err}", exc_info=True)
+        except KeyboardInterrupt:
+            self.logger.debug('Program is exiting...')
+            self.logger.debug('exit')
