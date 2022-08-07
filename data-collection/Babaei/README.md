@@ -2,7 +2,7 @@
 Simple script to scrape [telewebion.com](https://telewebion.com/) iptv website and extract link of archive videos. To use this script just you need to run `main.py` and add how many days and which channel you want to scrape.
 ```bash
 >>> python main.py -h
-usage: sel.py [-h] [-d DAYS] [-c CHANNEL]
+usage: sel.py [-h] [-d DAYS] [-c CHANNEL] [-a]
 
 Script to scrape telewebion archive videos
 
