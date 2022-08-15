@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import requests
@@ -201,18 +202,18 @@ class TelewebionScraper(webdriver.Firefox):
             dir_name = f'./data/videos/{video_id}'
             os.makedirs(dir_name, exist_ok=True)
 
-            filename = f'{dir_name}/{video_id}-metadata.txt'
+            filename = f'{dir_name}/{video_id}-metadata.json'
             with open(filename, 'w') as metadata:
-                meta_string = ''
-                meta_string += f'Video ID: {video_id}\n'
-                meta_string += f'Video Link: {elem.link}\n'
-                meta_string += f'Video Title: {elem.title}\n'
-                meta_string += f'Program Name: {elem.program_name}\n'
-                meta_string += f'Video Duration: {elem.duration}\n'
-                meta_string += f'Channel: {elem.channel}\n'
-                meta_string += f'Extract Date (Jalali): {elem.date.strftime("%a, %d %b %Y")}\n'
-                meta_string += f'Extract Date (Gregorian): {elem.date.togregorian().strftime("%a, %d %b %Y")}\n'
-                metadata.write(meta_string)
+                meta_dict = dict()
+                meta_dict['Video ID'] = video_id
+                meta_dict['Video Link'] = elem.link
+                meta_dict['Video Title'] = elem.title
+                meta_dict['Program Name'] = elem.program_name
+                meta_dict['Video Duration'] = elem.duration
+                meta_dict['Channel'] = elem.channel
+                meta_dict['Extract Date (Jalali)'] = elem.date.strftime("%a, %d %b %Y")
+                meta_dict['Extract Date (Gregorian)'] = elem.date.togregorian().strftime("%a, %d %b %Y")
+                json.dump(meta_dict, metadata)
 
         self.elements.clear()
 
@@ -270,14 +271,13 @@ class TelewebionScraper(webdriver.Firefox):
                     dir_name = f'./data/videos/{video_id}/{quality}'
                     os.makedirs(dir_name, exist_ok=True)
 
-                    metadata_path = f'{dir_name}/{video_id}-meta.txt'
+                    metadata_path = f'{dir_name}/{video_id}-meta.json'
                     with open(metadata_path, 'w') as metadata:
-                        meta_string = ''
-                        meta_string += f'Client Time: {datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")}\n'
-                        meta_string += f'Server Time: {r.headers.get("Date")}\n'
-                        meta_string += f'Video Last Modified: {r.headers.get("Last-Modified")}\n'
-                        meta_string += f'Video Size: {total} B\n'
-                        metadata.write(meta_string)
+                        meta_dict = dict()
+                        meta_dict['Download Time'] = r.headers.get("Date")
+                        meta_dict['Video Last Modified'] = r.headers.get("Last-Modified")
+                        meta_dict['Video Size'] = total
+                        json.dump(meta_dict, metadata)
                     self.logger.info(f'the metadata of video has written to {metadata_path}')
 
                     file_path = f'{dir_name}/{filename}'
