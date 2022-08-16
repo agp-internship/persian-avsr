@@ -18,5 +18,9 @@ if __name__ == "__main__":
                 tele_obj.automatic_scrape(args.days)
             else:
                 tele_obj.run(days=args.days, channel=args.channel)
+        tele_obj.logger.info('Close browser Window.')
+        tele_obj.quit()
         if args.download:
+            tele_obj.logger.info('Close browser Window.')
+            tele_obj.quit()
             tele_obj.download(quality=args.download)
