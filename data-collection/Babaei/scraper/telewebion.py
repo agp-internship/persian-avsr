@@ -1,9 +1,7 @@
-import errno
-from genericpath import isfile
-import json
 import os
-from sys import exc_info
 import time
+import json
+import errno
 import requests
 import jdatetime
 from tqdm import tqdm
