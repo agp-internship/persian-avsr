@@ -183,7 +183,7 @@ class TelewebionScraper(webdriver.Firefox):
     def write_links(self, isPipe: bool=False, quality: str='480'):
 
         if isPipe:
-            pipe_file = f'./data/{quality}'
+            pipe_file = f'./data/{quality}.pipe'
             try:
                 self.logger.info(f'make fifo file in {pipe_file}')
                 os.mkfifo(pipe_file, 0o666)
