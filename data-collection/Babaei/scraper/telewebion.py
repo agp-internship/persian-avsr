@@ -180,14 +180,13 @@ class TelewebionScraper(webdriver.Firefox):
         for elem in tqdm(self.elements):
             self.extract_link(elem.link)
 
-    def write_links(self, isPipe: bool=True, quality: str='480'):
+    def write_links(self, isPipe: bool=False, quality: str='480'):
 
         if isPipe:
-            pipe_file = f'./data/{quality}.pipe'
-
+            pipe_file = f'./data/{quality}'
             try:
                 self.logger.info(f'make fifo file in {pipe_file}')
-                os.mkfifo(pipe_file)
+                os.mkfifo(pipe_file, 0o666)
             except OSError as oe:
                 # check if file exist, don't raise exception
                 if oe.errno != errno.EEXIST:
@@ -199,8 +198,12 @@ class TelewebionScraper(webdriver.Firefox):
             self.logger.info(f'opening {pipe_file} ...')
             with open(pipe_file, 'w') as fifo: 
                 self.logger.info(f'{pipe_file} opened')
-                for _, value in self.download_dict.items():
-                    fifo.write(value[quality] + '\n')
+                # for _, value in self.download_dict.items():
+                    # fifo.write(value[quality] + '\n')
+                with open('./data/480.txt', 'r') as link_file:
+                    for value in link_file.readlines()[:5]: # for debugging
+                        fifo.write(value)
+                    fifo.write('QUIT')
                 self.logger.info(f'all links wrote to {pipe_file}')
             
         else:
@@ -276,7 +279,7 @@ class TelewebionScraper(webdriver.Firefox):
         except (NoSuchWindowException, InvalidSessionIdException):
             self.logger.debug('Browser closed.', exc_info=True)
 
-    def download(self, quality='720'):
+    def download(self, quality: str='720'):
         with open(f'./data/{quality}.txt', 'r') as f:
             links = f.readlines()
             links = list(map(lambda x: x[:-1], links))
@@ -329,3 +332,67 @@ class TelewebionScraper(webdriver.Firefox):
         except KeyboardInterrupt:
             self.logger.debug('Program is exiting...')
             self.logger.debug('exit')
+
+    def download_pipe(self, quality: str='480'):
+        pipe_file = f'./data/{quality}.pipe'
+        with open(pipe_file, 'r') as fifo:
+            isQuit = False
+            while True:
+                if isQuit:
+                    break
+                links = fifo.readlines()
+                if len(links) == 0:
+                    continue
+                links = list(map(lambda x: x[:-1], links))
+                self.logger.info(f'{len(links)} new {quality}p video links retrieved.')
+                self.logger.info('Start Downloading...')
+                try:
+                    for i in range(len(links)):
+                        try:
+                            link = links[i]
+                            if link == 'QUIT':
+                                isQuit = True
+                                break
+                            self.logger.info(f'downloading {link} ...')
+                            video_id = link.split('/')[-3]
+                            filename = '-'.join(link.split('/')[-3:-1]) + '.mp4'
+
+                            r = requests.get(link, allow_redirects=True, stream=True)
+                            total = int(r.headers.get('content-length', 0))
+
+                            dir_name = f'./data/videos/{video_id}/{quality}'
+                            os.makedirs(dir_name, exist_ok=True)
+
+                            metadata_path = f'{dir_name}/{video_id}-meta.json'
+                            with open(metadata_path, 'w') as metadata:
+                                meta_dict = dict()
+                                meta_dict['Download Time'] = r.headers.get("Date")
+                                meta_dict['Video Last Modified'] = r.headers.get("Last-Modified")
+                                meta_dict['Video Size'] = total
+                                json.dump(meta_dict, metadata)
+                            self.logger.info(f'the metadata of video has written to {metadata_path}')
+
+                            file_path = f'{dir_name}/{filename}'
+                            with open(file_path, 'wb') as f, tqdm(
+                                desc=filename,
+                                total=total,
+                                unit='iB',
+                                unit_scale=True,
+                                unit_divisor=1024,
+                            ) as bar:
+                                for data in r.iter_content(chunk_size=1024):
+                                    size = f.write(data)
+                                    bar.update(size)
+                            self.logger.info(f'video [{video_id}] has written to {file_path}')
+
+                        except requests.exceptions.HTTPError as errh:
+                            self.log.error(f"Http Error: {errh}", exc_info=True)
+                        except requests.exceptions.ConnectionError as errc:
+                            self.logger.error(f"Error Connecting: {errc}", exc_info=True)
+                        except requests.exceptions.Timeout as errt:
+                            self.logger.error(f"Timeout Error: {errt}", exc_info=True)
+                        except requests.exceptions.RequestException as err:
+                            self.logger.error(f"OOps: Something Else {err}", exc_info=True)
+                except KeyboardInterrupt:
+                    self.logger.debug('Program is exiting...')
+                    self.logger.debug('exit')
