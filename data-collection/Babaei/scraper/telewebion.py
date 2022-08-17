@@ -1,4 +1,5 @@
 import errno
+from genericpath import isfile
 import json
 import os
 from sys import exc_info
@@ -291,13 +292,17 @@ class TelewebionScraper(webdriver.Firefox):
                     self.logger.info(f'({i+1} of {len(links)})')
                     link = links[i]
                     video_id = link.split('/')[-3]
-                    filename = '-'.join(link.split('/')[-3:-1]) + '.mp4'
-
-                    r = requests.get(link, allow_redirects=True, stream=True)
-                    total = int(r.headers.get('content-length', 0))
 
                     dir_name = f'./data/videos/{video_id}/{quality}'
                     os.makedirs(dir_name, exist_ok=True)
+                    filename = '-'.join(link.split('/')[-3:-1]) + '.mp4'
+
+                    # ignore downloaded video links
+                    if os.path.isfile(os.path.join(dir_name, filename)):
+                        continue
+                    r = requests.get(link, allow_redirects=True, stream=True)
+                    total = int(r.headers.get('content-length', 0))
+
 
                     metadata_path = f'{dir_name}/{video_id}-meta.json'
                     with open(metadata_path, 'w') as metadata:
