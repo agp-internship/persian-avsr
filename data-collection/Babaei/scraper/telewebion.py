@@ -1,5 +1,7 @@
+import errno
 import json
 import os
+from sys import exc_info
 import time
 import requests
 import jdatetime
@@ -178,20 +180,43 @@ class TelewebionScraper(webdriver.Firefox):
         for elem in tqdm(self.elements):
             self.extract_link(elem.link)
 
-    def write_links(self):
-        os.makedirs('./data/', exist_ok=True)
-        f_480   = open('./data/480.txt', 'a')
-        f_720   = open('./data/720.txt', 'a')
-        f_1080  = open('./data/1080.txt', 'a')
+    def write_links(self, isPipe: bool=True, quality: str='480'):
 
-        for _, value in self.download_dict.items():
-            f_480.write(value['480'] + '\n')
-            f_720.write(value['720'] + '\n')
-            f_1080.write(value['1080'] + '\n')
+        if isPipe:
+            pipe_file = f'./data/{quality}.pipe'
 
-        f_480.close()
-        f_720.close()
-        f_1080.close()
+            try:
+                self.logger.info(f'make fifo file in {pipe_file}')
+                os.mkfifo(pipe_file)
+            except OSError as oe:
+                # check if file exist, don't raise exception
+                if oe.errno != errno.EEXIST:
+                    self.logger.error('error in making pipe file', exc_info=True)
+                    raise
+                else:
+                    self.logger.info(f'{pipe_file} already exists')
+
+            self.logger.info(f'opening {pipe_file} ...')
+            with open(pipe_file, 'w') as fifo: 
+                self.logger.info(f'{pipe_file} opened')
+                for _, value in self.download_dict.items():
+                    fifo.write(value[quality] + '\n')
+                self.logger.info(f'all links wrote to {pipe_file}')
+            
+        else:
+            os.makedirs('./data/', exist_ok=True)
+            f_480   = open('./data/480.txt', 'a')
+            f_720   = open('./data/720.txt', 'a')
+            f_1080  = open('./data/1080.txt', 'a')
+
+            for _, value in self.download_dict.items():
+                f_480.write(value['480'] + '\n')
+                f_720.write(value['720'] + '\n')
+                f_1080.write(value['1080'] + '\n')
+
+            f_480.close()
+            f_720.close()
+            f_1080.close()
 
         self.logger.info('Extracted links wrote to files.')
         self.download_dict.clear()
@@ -258,7 +283,7 @@ class TelewebionScraper(webdriver.Firefox):
         self.logger.info(f'{quality}p video links loaded.')
         self.logger.info('Start Downloading...')
         try:
-            for i in range(len(links)):
+            for i in range(len(links))[:5]:
                 try:
                     self.logger.info(f'({i+1} of {len(links)})')
                     link = links[i]
