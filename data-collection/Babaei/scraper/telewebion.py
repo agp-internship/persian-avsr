@@ -200,10 +200,10 @@ class TelewebionScraper(webdriver.Firefox):
                 self.logger.info(f'{pipe_file} opened')
                 # for _, value in self.download_dict.items():
                     # fifo.write(value[quality] + '\n')
-                with open('./data/480.txt', 'r') as link_file:
-                    for value in link_file.readlines()[:5]: # for debugging
-                        fifo.write(value)
-                    fifo.write('QUIT')
+                with open('./data/480.txt', 'r') as link_file:  # for debugging
+                    for value in link_file.readlines()[:5]:     # for debugging
+                        fifo.write(value)                       # for debugging
+                fifo.write('QUIT')
                 self.logger.info(f'all links wrote to {pipe_file}')
             
         else:
