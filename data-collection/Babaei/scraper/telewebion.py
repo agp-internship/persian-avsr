@@ -185,7 +185,7 @@ class TelewebionScraper(webdriver.Firefox):
             pipe_file = f'./data/{quality}.pipe'
             try:
                 self.logger.info(f'make fifo file in {pipe_file}')
-                os.mkfifo(pipe_file, 0o666)
+                os.mkfifo(pipe_file)
             except OSError as oe:
                 # check if file exist, don't raise exception
                 if oe.errno != errno.EEXIST:
@@ -285,7 +285,7 @@ class TelewebionScraper(webdriver.Firefox):
         self.logger.info(f'{quality}p video links loaded.')
         self.logger.info('Start Downloading...')
         try:
-            for i in range(len(links))[:5]:
+            for i in range(len(links))[:5]:     # for debugging
                 try:
                     self.logger.info(f'({i+1} of {len(links)})')
                     link = links[i]
