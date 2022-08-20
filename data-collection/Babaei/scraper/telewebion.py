@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 
 from selenium import webdriver
 from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -29,13 +30,18 @@ class TelewebionScraper(webdriver.Firefox):
     def __init__(self, webdriver_path='./geckodriver/geckodriver.exe', close_browser=True):
         logger_config()
         self.logger = getLogger(__name__)
+
         self.elements = None
         self.download_dict = dict()
         self.download_quality = ['480', '720', '1080']
         self.valid_channels = self.load_valid_channels()
+
+        options = Options()
+        options.add_argument("--headless")
         self.service = Service(webdriver_path)
         self.close_browser = close_browser
-        super(TelewebionScraper, self).__init__(service=self.service)
+        super(TelewebionScraper, self).__init__(options=options, service=self.service)
+        
         self.implicitly_wait(20)
         self.maximize_window()
         self.logger.info(f'Firefox driver path: {os.path.abspath(webdriver_path)}')
