@@ -30,7 +30,14 @@ if __name__ == "__main__":
             print('start date format is not valid.\nValid Pattern: ex: 1401-01-30')
             sys.exit(0)
 
-    with TelewebionScraper() as tele_obj:
+    platform = sys.platform
+    if platform.startswith('win'):
+        gecko_path = './geckodriver/geckodriver.exe'
+    elif platform == 'linux':
+        gecko_path = './geckodriver/geckodriver'
+    else:
+        print(f'can not detect this platform. {platform=}')
+    with TelewebionScraper(webdriver_path=gecko_path) as tele_obj:
         if args.no_extract:
             if args.auto:
                 tele_obj.automatic_scrape(args.days)
