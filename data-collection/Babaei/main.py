@@ -35,6 +35,8 @@ if __name__ == "__main__":
             if args.auto:
                 tele_obj.automatic_scrape(args.days)
             else:
+                if not start_date:
+                    start_date = jdatetime.date.today()
                 tele_obj.run(days=args.days, start_date=start_date, channel=args.channel)
         tele_obj.logger.info('Close browser Window.')
         tele_obj.quit()
