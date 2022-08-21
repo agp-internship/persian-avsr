@@ -16,18 +16,19 @@ parser.add_argument('--download', action='store', choices=['480', '720', '1080']
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    results = re.match(r'^(?P<year>\d{4})-(?P<month>[0-1]{1}\d{1})-(?P<day>[0-3]{1}\d{1})$', args.start_date)
-    if results:
-        start_date_dict = results.groupdict()
-        year    = int(start_date_dict['year'])
-        month   = int(start_date_dict['month'])
-        day     = int(start_date_dict['day'])
-        
-        start_date = jdatetime.date(year, month, day)
+    if args.start_date:
+        results = re.match(r'^(?P<year>\d{4})-(?P<month>[0-1]{1}\d{1})-(?P<day>[0-3]{1}\d{1})$', args.start_date)
+        if results:
+            start_date_dict = results.groupdict()
+            year    = int(start_date_dict['year'])
+            month   = int(start_date_dict['month'])
+            day     = int(start_date_dict['day'])
+            
+            start_date = jdatetime.date(year, month, day)
 
-    else:
-        print('start date format is not valid.\nValid Pattern: ex: 1401-01-30')
-        sys.exit(0)
+        else:
+            print('start date format is not valid.\nValid Pattern: ex: 1401-01-30')
+            sys.exit(0)
 
     with TelewebionScraper() as tele_obj:
         if args.no_extract:
