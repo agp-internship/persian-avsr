@@ -251,12 +251,11 @@ class TelewebionScraper(webdriver.Firefox):
         self.elements.clear()
 
 
-    def run(self, days=1, channel='irinn'):
+    def run(self, days=1, start_date=jdatetime.date.today(), channel='irinn'):
         try:
 
-            today = jdatetime.date.today()
             for i in range(days):
-                date = today - jdatetime.timedelta(i)
+                date = start_date - jdatetime.timedelta(i)
                 self.logger.info(f'{date} of {channel}')
                 self.get_link_per_channel_date(date, channel)
                 self.write_links()
