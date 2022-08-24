@@ -62,7 +62,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.download and args.fifo:
-        cur_dir = os.getcwd()
+        cur_dir = os.path.dirname(__file__)
         download_fifo_path = os.path.join(cur_dir, 'download_fifo.py')
         subprocess.Popen(['python', download_fifo_path], stdout=sys.stdout)
 
