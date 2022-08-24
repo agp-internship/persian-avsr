@@ -1,3 +1,4 @@
+import os
 import sys
 import re
 import jdatetime
@@ -61,7 +62,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.download and args.fifo:
-        subprocess.Popen(['python', 'download_fifo.py'], stdout=sys.stdout)
+        cur_dir = os.getcwd()
+        download_fifo_path = os.path.join(cur_dir, 'download_fifo.py')
+        subprocess.Popen(['python', download_fifo_path], stdout=sys.stdout)
 
     if args.start_date:
         results = re.match(r'^(?P<year>\d{4})-(?P<month>[0-1]{1}\d{1})-(?P<day>[0-3]{1}\d{1})$', args.start_date)
