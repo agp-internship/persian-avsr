@@ -272,14 +272,14 @@ class TelewebionScraper(webdriver.Firefox):
         except (NoSuchWindowException, InvalidSessionIdException):
             self.logger.debug('Browser closed.', exc_info=True)
 
-    def download(self, quality: str='720'):
+    def download(self, quality: str='480'):
         with open(f'./data/{quality}.txt', 'r') as f:
             links = f.readlines()
             links = list(map(lambda x: x[:-1], links))
         self.logger.info(f'{quality}p video links loaded.')
         self.logger.info('Start Downloading...')
         try:
-            for i in range(len(links))[:5]:     # for debugging
+            for i in range(len(links)):
                 try:
                     self.logger.info(f'({i+1} of {len(links)})')
                     link = links[i]
