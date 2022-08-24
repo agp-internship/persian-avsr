@@ -22,7 +22,7 @@ from utils.fifo import mkfifo_exist_ok
 
 class TelewebionScraperRemote(webdriver.Remote):
 
-    def __init__(self, close_browser=True):
+    def __init__(self, domain='localhost', close_browser=True):
         logger_config()
         self.logger = getLogger(__name__)
 
@@ -34,8 +34,12 @@ class TelewebionScraperRemote(webdriver.Remote):
         options = Options()
         options.add_argument("--headless")
         self.close_browser = close_browser
+
+        if not domain:
+            domain = 'localhost'
+
         super(TelewebionScraperRemote, self).__init__(
-            command_executor='http://localhost:4444/wd/hub',
+            command_executor=f'http://{domain}:4444/wd/hub',
             options=options,
         )
         

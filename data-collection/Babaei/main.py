@@ -19,6 +19,7 @@ parser.add_argument('-n', '--no-extract', action='store_false', help='disable ex
 parser.add_argument('--download', action='store', choices=['480', '720', '1080'], help='enable download when extracting links have done.')
 parser.add_argument('-r', '--remote', action='store_true', help='enable using remote browser')
 parser.add_argument('-f', '--fifo', action='store_true', help='enable using fifo file for download (Linux only)')
+parser.add_argument('--docker', action='store', help='name of firefox container')
 
 def handle(tele_obj, args, start_date=jdatetime.date.today(), isFIFO=False):
     """
@@ -79,7 +80,7 @@ if __name__ == "__main__":
         start_date = jdatetime.date.today()
 
     if args.remote:
-        tele_obj = TelewebionScraperRemote()
+        tele_obj = TelewebionScraperRemote(domain=args.docker)
         handle(tele_obj, args, start_date, args.fifo)
     else:
         gecko_path = set_webdriver_based_platform()
