@@ -1,26 +1,25 @@
 import os
 import time
 import json
-import errno
 import requests
 import jdatetime
 from tqdm import tqdm
 from logging import getLogger
 from argparse import Namespace
 from dotenv import load_dotenv
-from datetime import datetime, timezone
 
 from selenium import webdriver
+from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.service import Service
 from selenium.webdriver.firefox.options import Options
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchWindowException, InvalidSessionIdException
 from exceptions.exceptions import ChannelDoesNotExistException
 
 from logger.logger import logger_config
+from utils.fifo import mkfifo_exist_ok
+
 
 class TelewebionScraper(webdriver.Firefox):
 
@@ -189,26 +188,16 @@ class TelewebionScraper(webdriver.Firefox):
 
         if isPipe:
             pipe_file = f'./data/{quality}.pipe'
-            try:
-                self.logger.info(f'make fifo file in {pipe_file}')
-                os.mkfifo(pipe_file)
-            except OSError as oe:
-                # check if file exist, don't raise exception
-                if oe.errno != errno.EEXIST:
-                    self.logger.error('error in making pipe file', exc_info=True)
-                    raise
-                else:
-                    self.logger.info(f'{pipe_file} already exists')
+            mkfifo_exist_ok(pipe_file, self.logger)
 
             self.logger.info(f'opening {pipe_file} ...')
             with open(pipe_file, 'w') as fifo: 
                 self.logger.info(f'{pipe_file} opened')
-                # for _, value in self.download_dict.items():
-                    # fifo.write(value[quality] + '\n')
-                with open('./data/480.txt', 'r') as link_file:  # for debugging
-                    for value in link_file.readlines()[:5]:     # for debugging
-                        fifo.write(value)                       # for debugging
-                fifo.write('QUIT')
+                for _, value in self.download_dict.items():
+                    fifo.write(value[quality] + '\n')
+
+                # indicate end of file (<EOF>)
+                fifo.write('QUIT\n')
                 self.logger.info(f'all links wrote to {pipe_file}')
             
         else:
@@ -251,14 +240,14 @@ class TelewebionScraper(webdriver.Firefox):
         self.elements.clear()
 
 
-    def run(self, days=1, start_date=jdatetime.date.today(), channel='irinn'):
+    def run(self, days=1, start_date=jdatetime.date.today(), channel='irinn', isFIFO=False):
         try:
 
             for i in range(days):
                 date = start_date - jdatetime.timedelta(i)
                 self.logger.info(f'{date} of {channel}')
                 self.get_link_per_channel_date(date, channel)
-                self.write_links()
+                self.write_links(isFIFO)
                 self.write_metadata()
 
         except ChannelDoesNotExistException as e:
@@ -340,67 +329,3 @@ class TelewebionScraper(webdriver.Firefox):
         except KeyboardInterrupt:
             self.logger.debug('Program is exiting...')
             self.logger.debug('exit')
-
-    def download_pipe(self, quality: str='480'):
-        pipe_file = f'./data/{quality}.pipe'
-        with open(pipe_file, 'r') as fifo:
-            isQuit = False
-            while True:
-                if isQuit:
-                    break
-                links = fifo.readlines()
-                if len(links) == 0:
-                    continue
-                links = list(map(lambda x: x[:-1], links))
-                self.logger.info(f'{len(links)} new {quality}p video links retrieved.')
-                self.logger.info('Start Downloading...')
-                try:
-                    for i in range(len(links)):
-                        try:
-                            link = links[i]
-                            if link == 'QUIT':
-                                isQuit = True
-                                break
-                            self.logger.info(f'downloading {link} ...')
-                            video_id = link.split('/')[-3]
-                            filename = '-'.join(link.split('/')[-3:-1]) + '.mp4'
-
-                            r = requests.get(link, allow_redirects=True, stream=True)
-                            total = int(r.headers.get('content-length', 0))
-
-                            dir_name = f'./data/videos/{video_id}/{quality}'
-                            os.makedirs(dir_name, exist_ok=True)
-
-                            metadata_path = f'{dir_name}/{video_id}-meta.json'
-                            with open(metadata_path, 'w') as metadata:
-                                meta_dict = dict()
-                                meta_dict['Download Time'] = r.headers.get("Date")
-                                meta_dict['Video Last Modified'] = r.headers.get("Last-Modified")
-                                meta_dict['Video Size'] = total
-                                json.dump(meta_dict, metadata)
-                            self.logger.info(f'the metadata of video has written to {metadata_path}')
-
-                            file_path = f'{dir_name}/{filename}'
-                            with open(file_path, 'wb') as f, tqdm(
-                                desc=filename,
-                                total=total,
-                                unit='iB',
-                                unit_scale=True,
-                                unit_divisor=1024,
-                            ) as bar:
-                                for data in r.iter_content(chunk_size=1024):
-                                    size = f.write(data)
-                                    bar.update(size)
-                            self.logger.info(f'video [{video_id}] has written to {file_path}')
-
-                        except requests.exceptions.HTTPError as errh:
-                            self.log.error(f"Http Error: {errh}", exc_info=True)
-                        except requests.exceptions.ConnectionError as errc:
-                            self.logger.error(f"Error Connecting: {errc}", exc_info=True)
-                        except requests.exceptions.Timeout as errt:
-                            self.logger.error(f"Timeout Error: {errt}", exc_info=True)
-                        except requests.exceptions.RequestException as err:
-                            self.logger.error(f"OOps: Something Else {err}", exc_info=True)
-                except KeyboardInterrupt:
-                    self.logger.debug('Program is exiting...')
-                    self.logger.debug('exit')
