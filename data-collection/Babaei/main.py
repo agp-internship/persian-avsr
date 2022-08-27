@@ -53,7 +53,8 @@ def handle(tele_obj, args, start_date=jdatetime.date.today(), isFIFO=False):
             )
 
     tele_obj.logger.info('Close browser Window.')
-    tele_obj.quit()
+    if not args.remote:
+        tele_obj.quit()
     if args.download and not args.fifo:
         tele_obj.download(quality=args.download)
 
