@@ -1,6 +1,8 @@
 FROM python:3.8-slim
 WORKDIR /code
 
+# You should add your Authentication Cookie items here as ENV
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends git wget\
     && apt-get purge -y --auto-remove
