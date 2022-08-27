@@ -10,3 +10,4 @@ def set_webdriver_based_platform():
     else:
         print(f'can not detect this platform. {platform=}')
         sys.exit(-1)
+        
