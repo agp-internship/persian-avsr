@@ -18,6 +18,11 @@ from exceptions.exceptions import ChannelDoesNotExistException
 
 from logger.logger import logger_config
 from utils.fifo import mkfifo_exist_ok
+from utils.load import (
+    load_downloaded_videos,
+    load_extracted_links, 
+    load_valid_channels
+)
 
 
 class TelewebionScraperRemote(webdriver.Remote):
@@ -26,10 +31,12 @@ class TelewebionScraperRemote(webdriver.Remote):
         logger_config()
         self.logger = getLogger(__name__)
 
-        self.elements = None
-        self.download_dict = dict()
-        self.download_quality = ['480', '720', '1080']
-        self.valid_channels = self.load_valid_channels()
+        self.elements               = None
+        self.download_dict          = dict()
+        self.download_quality       = ['480', '720', '1080']
+        self.valid_channels         = load_valid_channels(logger=self.logger)
+        self.downloaded_videos_id   = load_downloaded_videos()
+        self.extracted_links_id     = load_extracted_links()
 
         options = Options()
         options.add_argument("--headless")
@@ -37,6 +44,8 @@ class TelewebionScraperRemote(webdriver.Remote):
 
         if not domain:
             domain = 'localhost'
+
+        self.logger.info(domain)
 
         super(TelewebionScraperRemote, self).__init__(
             command_executor=f'http://{domain}:4444/wd/hub',
@@ -71,12 +80,6 @@ class TelewebionScraperRemote(webdriver.Remote):
         self.add_cookie({'name': 'token', 'value': os.getenv('token')})
 
         self.logger.info('Authentication cookie added.')
-
-    def load_valid_channels(self, path='./data/valid_channels.txt'):
-        with open(path, 'r') as f:
-            channels = list(map(lambda x: x.replace('\n', ''), f.readlines()))
-        self.logger.info(f'{len(channels)} channels added to valid_channels')
-        return channels
 
     def click_load_more_button(self):
         try:
@@ -131,6 +134,7 @@ class TelewebionScraperRemote(webdriver.Remote):
                 date=date
             )
             for i in range(len(elems_links))
+            if elems_links[i].split('/')[-1] not in self.extracted_links_id
         ]
 
     def extract_link(self, link): 
@@ -273,16 +277,36 @@ class TelewebionScraperRemote(webdriver.Remote):
         except (NoSuchWindowException, InvalidSessionIdException):
             self.logger.debug('Browser closed.', exc_info=True)
 
-    def download(self, quality: str='480'):
+    def download(self, quality: str='480', force: bool=False):
+        """
+        :param:
+        quality - str   - download quality of video
+        force   - bool  - force to download downloaded videos again
+
+        :description:
+        Download extracted links in `./data/videos/` directory.
+        """
+
+        # load all extracted links
         with open(f'./data/{quality}.txt', 'r') as f:
             links = f.readlines()
             links = list(map(lambda x: x[:-1], links))
+
+        # filter all links that already have been downloaded if there is no force
+        if not force:
+            links = list(filter(
+                lambda x: x.split('/')[-3] not in self.downloaded_videos_id, 
+                links
+            ))
+
+        links_num = len(links)
         self.logger.info(f'{quality}p video links loaded.')
+        self.logger.info(f'{links_num} links are ready to download.')
         self.logger.info('Start Downloading...')
         try:
-            for i in range(len(links)):
+            for i in range(links_num):
                 try:
-                    self.logger.info(f'({i+1} of {len(links)})')
+                    self.logger.info(f'({i+1} of {links_num})')
                     link = links[i]
                     video_id = link.split('/')[-3]
 
