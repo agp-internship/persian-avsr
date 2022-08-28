@@ -1,24 +1,30 @@
-import json
 import os
 import time
+import json
 import requests
 import jdatetime
 from tqdm import tqdm
 from logging import getLogger
 from argparse import Namespace
 from dotenv import load_dotenv
-from datetime import datetime, timezone
 
 from selenium import webdriver
-from selenium.webdriver.firefox.service import Service
-from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.service import Service
+from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchWindowException, InvalidSessionIdException
 from exceptions.exceptions import ChannelDoesNotExistException
 
 from logger.logger import logger_config
+from utils.fifo import mkfifo_exist_ok
+from utils.load import (
+    load_downloaded_videos, 
+    load_extracted_links,
+    load_valid_channels
+)
+
 
 class TelewebionScraper(webdriver.Firefox):
 
@@ -28,13 +34,20 @@ class TelewebionScraper(webdriver.Firefox):
     def __init__(self, webdriver_path='./geckodriver/geckodriver.exe', close_browser=True):
         logger_config()
         self.logger = getLogger(__name__)
-        self.elements = None
-        self.download_dict = dict()
-        self.download_quality = ['480', '720', '1080']
-        self.valid_channels = self.load_valid_channels()
+
+        self.elements               = None
+        self.download_dict          = dict()
+        self.download_quality       = ['480', '720', '1080']
+        self.valid_channels         = load_valid_channels(logger=self.logger)
+        self.downloaded_videos_id   = load_downloaded_videos()
+        self.extracted_links_id     = load_extracted_links()
+
+        options = Options()
+        options.add_argument("--headless")
         self.service = Service(webdriver_path)
         self.close_browser = close_browser
-        super(TelewebionScraper, self).__init__(service=self.service)
+        super(TelewebionScraper, self).__init__(options=options, service=self.service)
+        
         self.implicitly_wait(20)
         self.maximize_window()
         self.logger.info(f'Firefox driver path: {os.path.abspath(webdriver_path)}')
@@ -64,12 +77,6 @@ class TelewebionScraper(webdriver.Firefox):
         self.add_cookie({'name': 'token', 'value': os.getenv('token')})
 
         self.logger.info('Authentication cookie added.')
-
-    def load_valid_channels(self, path='./data/valid_channels.txt'):
-        with open(path, 'r') as f:
-            channels = list(map(lambda x: x.replace('\n', ''), f.readlines()))
-        self.logger.info(f'{len(channels)} channels added to valid_channels')
-        return channels
 
     def click_load_more_button(self):
         try:
@@ -124,6 +131,7 @@ class TelewebionScraper(webdriver.Firefox):
                 date=date
             )
             for i in range(len(elems_links))
+            if elems_links[i].split('/')[-1] not in self.extracted_links_id
         ]
 
     def extract_link(self, link): 
@@ -178,20 +186,36 @@ class TelewebionScraper(webdriver.Firefox):
         for elem in tqdm(self.elements):
             self.extract_link(elem.link)
 
-    def write_links(self):
-        os.makedirs('./data/', exist_ok=True)
-        f_480   = open('./data/480.txt', 'a')
-        f_720   = open('./data/720.txt', 'a')
-        f_1080  = open('./data/1080.txt', 'a')
+    def write_links(self, isPipe: bool=False, quality: str='480'):
 
-        for _, value in self.download_dict.items():
-            f_480.write(value['480'] + '\n')
-            f_720.write(value['720'] + '\n')
-            f_1080.write(value['1080'] + '\n')
+        if isPipe:
+            pipe_file = f'./data/{quality}.pipe'
+            mkfifo_exist_ok(pipe_file, self.logger)
 
-        f_480.close()
-        f_720.close()
-        f_1080.close()
+            self.logger.info(f'opening {pipe_file} ...')
+            with open(pipe_file, 'w') as fifo: 
+                self.logger.info(f'{pipe_file} opened')
+                for _, value in self.download_dict.items():
+                    fifo.write(value[quality] + '\n')
+
+                # indicate end of file (<EOF>)
+                fifo.write('QUIT\n')
+                self.logger.info(f'all links wrote to {pipe_file}')
+            
+        else:
+            os.makedirs('./data/', exist_ok=True)
+            f_480   = open('./data/480.txt', 'a')
+            f_720   = open('./data/720.txt', 'a')
+            f_1080  = open('./data/1080.txt', 'a')
+
+            for _, value in self.download_dict.items():
+                f_480.write(value['480'] + '\n')
+                f_720.write(value['720'] + '\n')
+                f_1080.write(value['1080'] + '\n')
+
+            f_480.close()
+            f_720.close()
+            f_1080.close()
 
         self.logger.info('Extracted links wrote to files.')
         self.download_dict.clear()
@@ -218,15 +242,14 @@ class TelewebionScraper(webdriver.Firefox):
         self.elements.clear()
 
 
-    def run(self, days=1, channel='irinn'):
+    def run(self, days=1, start_date=jdatetime.date.today(), channel='irinn', isFIFO=False):
         try:
 
-            today = jdatetime.date.today()
             for i in range(days):
-                date = today - jdatetime.timedelta(i)
+                date = start_date - jdatetime.timedelta(i)
                 self.logger.info(f'{date} of {channel}')
                 self.get_link_per_channel_date(date, channel)
-                self.write_links()
+                self.write_links(isFIFO)
                 self.write_metadata()
 
         except ChannelDoesNotExistException as e:
@@ -251,25 +274,49 @@ class TelewebionScraper(webdriver.Firefox):
         except (NoSuchWindowException, InvalidSessionIdException):
             self.logger.debug('Browser closed.', exc_info=True)
 
-    def download(self, quality='720'):
+    def download(self, quality: str='480', force: bool=False):
+        """
+        :param:
+        quality - str   - download quality of video
+        force   - bool  - force to download downloaded videos again
+
+        :description:
+        Download extracted links in `./data/videos/` directory.
+        """
+
+        # load all extracted links
         with open(f'./data/{quality}.txt', 'r') as f:
             links = f.readlines()
             links = list(map(lambda x: x[:-1], links))
+
+        # filter all links that already have been downloaded if there is no force
+        if not force:
+            links = list(filter(
+                lambda x: x.split('/')[-3] not in self.downloaded_videos_id, 
+                links
+            ))
+
+        links_num = len(links)
         self.logger.info(f'{quality}p video links loaded.')
+        self.logger.info(f'{links_num} links are ready to download.')
         self.logger.info('Start Downloading...')
         try:
-            for i in range(len(links)):
+            for i in range(links_num):
                 try:
-                    self.logger.info(f'({i+1} of {len(links)})')
+                    self.logger.info(f'({i+1} of {links_num})')
                     link = links[i]
                     video_id = link.split('/')[-3]
-                    filename = '-'.join(link.split('/')[-3:-1]) + '.mp4'
-
-                    r = requests.get(link, allow_redirects=True, stream=True)
-                    total = int(r.headers.get('content-length', 0))
 
                     dir_name = f'./data/videos/{video_id}/{quality}'
                     os.makedirs(dir_name, exist_ok=True)
+                    filename = '-'.join(link.split('/')[-3:-1]) + '.mp4'
+
+                    # ignore downloaded video links
+                    if os.path.isfile(os.path.join(dir_name, filename)):
+                        continue
+                    r = requests.get(link, allow_redirects=True, stream=True)
+                    total = int(r.headers.get('content-length', 0))
+
 
                     metadata_path = f'{dir_name}/{video_id}-meta.json'
                     with open(metadata_path, 'w') as metadata:

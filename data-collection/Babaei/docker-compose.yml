@@ -1,0 +1,24 @@
+version: '3.9'
+services:
+  telewebion:
+    build: .
+    command: python /code/data-collection/Babaei/main.py -r --docker firefox --download 480
+    volumes:
+      - ./log:/code/data-collection/Babaei/log
+      - ./data:/code/data-collection/Babaei/data
+    depends_on:
+      firefox:
+        condition: service_healthy
+  
+  firefox:
+    image: selenium/standalone-firefox
+    shm_size: 2gb
+    ports:
+      - 4444:4444
+      - 7900:7900
+    healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:4444"]
+        interval: 30s
+        timeout: 10s
+        retries: 5
+        

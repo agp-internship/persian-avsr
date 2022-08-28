@@ -42,6 +42,11 @@ loggers:
     handlers: [console, file-info, file-error]
     propagate: no
 
+  scraper.telewebion_remote:
+    level: DEBUG
+    handlers: [console, file-info, file-error]
+    propagate: no
+
 root: 
   level: DEBUG
   handlers: [console, file-info, file-error]
